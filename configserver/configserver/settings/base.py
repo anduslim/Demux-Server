@@ -195,6 +195,7 @@ DJANGO_APPS = (
 # Apps specific for this project go here.
 LOCAL_APPS = (
     'configserver',
+    'actors'
 )
 
 # See: https://docs.djangoproject.com/en/dev/ref/settings/#installed-apps
@@ -267,3 +268,9 @@ INSTALLED_APPS += (
 # Don't need to use South when setting up a test database.
 SOUTH_TESTS_MIGRATE = False
 ########## END SOUTH CONFIGURATION
+
+######### OTHER SETTINGS
+EXT_BROKER_URL = "localhost"
+EXT_BROKER_PORT = 61616
+EXT_BROKER_TIMEOUT = 20
+######### END OTHER SETTINGS

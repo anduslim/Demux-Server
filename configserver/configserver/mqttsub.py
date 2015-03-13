@@ -1,7 +1,5 @@
 #!/usr/bin/python
 
-# This gist shows how to create a secured MQTT connection over TLS 1.2
- 
 import paho.mqtt.client as paho
 import ssl
 import datetime
@@ -11,21 +9,20 @@ import math
 import requests
 import json
 import logging
+from django.conf import settings
 
 logger = logging.getLogger(__name__)
  
-EXT_BROKER_URL = "localhost" #"unisense.i2r.a-star.edu.sg";
-EXT_BROKER_PORT = 61616
-EXT_BROKER_TIMEOUT = 20
 DATAAPI_MEASUREMENTS_POST_URL = "http://dataapi.sensesurf.sns-i2r.org/api/v1/measurements"
+DATAAPI_STATISTICS_POST_URL = "http://dataapi.sensesurf.sns-i2r.org/api/v1/statistics"
 
-TYPE2_MODALITIES = [ 'sequence', 'temperature', 'humidity', 'illuminance', 'pir', 'noise', 'int_temperature']
-TYPE2_DATAAPI_MODALITIES = [ 'sequence', 'temperature', 'rel_humidity', 'lux', 'pir', 'ns_decibels', 'int_temperature']
-TYPE2_MODALITIES_TYPE = [ 'sequence', 'TemperatureMeasurement', 'HumidityMeasurement', 'IlluminanceMeasurement', 'PirMeasurement', 'NoiseMeasurement', 'TemperatureMeasurement']
+TYPE2_MODALITIES = [ 'sequence', 'temperature', 'humidity', 'illuminance', 'pir', 'int_temperature', 'noise']
+TYPE2_DATAAPI_MODALITIES = [ 'sequence', 'temperature', 'rel_humidity', 'lux', 'pir', 'int_temperature', 'ns_decibels']
+TYPE2_MODALITIES_TYPE = [ 'sequence', 'TemperatureMeasurement', 'HumidityMeasurement', 'IlluminanceMeasurement', 'PirMeasurement', 'TemperatureMeasurement', 'NoiseMeasurement']
 TYPE2_BYTELENGTH = [ 2, 4, 4, 4, 2, 4, 4]
 TYPE3_MODALITIES = [ 'sequence', 'temperature', 'humidity', 'illuminance', 'irradiance', 'int_temperature', 'voltage', 'current', 'percentage_charge']
-TYPE3_DATAAPI_MODALITIES = [ 'sequence', 'temperature', 'rel_humidity', 'lux', 'irradiance', 'int_temperature', 'voltage', 'dc_current', 'percentagecharge']
-TYPE3_MODALITIES_TYPE = [ 'sequence', 'TemperatureMeasurement', 'HumidityMeasurement', 'IlluminanceMeasurement', 'IrradianceMeasurement', 'TemperatureMeasurement', 'BatteryStatistic', 'CurrentMeasurement', 'BatteryStatistic']
+TYPE3_DATAAPI_MODALITIES = [ 'sequence', 'temperature', 'rel_humidity', 'lux', 'irradiance', 'int_temperature', 'voltage', 'dc', 'percentagecharge']
+TYPE3_MODALITIES_TYPE = [ 'sequence', 'TemperatureMeasurement', 'HumidityMeasurement', 'IlluminanceMeasurement', 'IrradianceMeasurement', 'TemperatureMeasurement', 'BatteryMeasurement', 'CurrentMeasurement', 'BatteryMeasurement']
 TYPE3_BYTELENGTH = [ 2, 4, 4, 4, 4, 4, 4, 4, 4]
 
 def post_measurements_data_api(modality_type, nodeid, timestamp, seqno, gwtimestamp, dataapi_modality, value):
@@ -43,6 +40,26 @@ def post_measurements_data_api(modality_type, nodeid, timestamp, seqno, gwtimest
     result = session.post(DATAAPI_MEASUREMENTS_POST_URL, data=json.dumps(payload), headers=headers)
     if '200' not in str(result.status_code):
         print("Error: %s. [%s] modality-%s" % (result.text, nodeid, modality_type))        
+    else:
+        print("Success:!")
+
+def post_measurements_statistics_api(type, nodeid, timestamp, seqno, stats_type, value):
+    session = requests.session()
+    headers = {'content-type': 'application/json'}
+    payload = {'statistic': {
+                   'type': type,
+                   'node_guid': nodeid,
+                   'recorded_at': timestamp,
+                   'sequence_number': seqno
+                  }
+              }
+    for index, key in enumerate(stats_type):
+        payload['statistic'][key] = value[index].replace(':', ',')
+
+    print(payload)
+    result = session.post(DATAAPI_STATISTICS_POST_URL, data=json.dumps(payload), headers=headers)
+    if '200' not in str(result.status_code):
+        print("Error: %s. [%s] type-%s" % (result.text, nodeid, type))        
     else:
         print("Success:!")
 
@@ -80,11 +97,12 @@ TYPE_MAPPING = {2 : parse_type2_modalities,
                 3 : parse_type3_modalities,
 }
 
+
 class MQTTDemuxClient:
 
     def on_connect(self, client, userdata, flags, rc):
         logger.info('Successfully connected to MQTT broker!')
-        client.subscribe('sns/+/+/+', 2)
+        client.subscribe('sns/+/+/+/#', 2)
         logger.info('On_connect: Subscribing to sns/+/+/+')
  
     def on_message(self, client, userdata, msg):
@@ -93,10 +111,13 @@ class MQTTDemuxClient:
         print( "On message. Received topic %s with qos %s." % (msg.topic, str(msg.qos)) )
         topic = msg.topic.split('/')
         
-        if topic[3] == "aggregate":
+        if topic[3] == 'aggregate' and len(topic) == 4:
             print("Pass packet to data module")
             publishTopic = topic[0] + '/' + topic[1] + '/' + topic[2] + '/reading/' + topic[3] 
-            self.parse_sensor_pkt(messagebyte, topic[2], publishTopic)
+            #self.parse_sensor_pkt(topic[2], publishTopic, messagebyte)
+        elif topic[3] == 'statistics':# and len(topic) == 5:
+            self.parse_statistics_pkt(topic[2], topic[4], messagebyte.decode('utf-8'))
+            print("+++++++++ I have a statistics packet... How now? Brown cow? ++++")
  
     def on_publish(self, client, userdata, mid):
         logger.debug('On publishing mib: %s ' % (str(mid))) 
@@ -114,7 +135,7 @@ class MQTTDemuxClient:
             n ^= (1<<shift_bit)
             shift_bit+=1
 
-    def parse_sensor_pkt(self, message, nodeid, topic):
+    def parse_sensor_pkt(self, nodeid, topic, message):
         print("Parsing data packet");
         timestamp, confSeq, verNum, deployID, bitMap, seqno = struct.unpack('<IHIBIH', message[:17])
         RXTimestamp = datetime.datetime.utcfromtimestamp(timestamp).isoformat()
@@ -128,25 +149,47 @@ class MQTTDemuxClient:
         print("\nRemaining Data Length :%d" %lenData)
         result = TYPE_MAPPING[confSeq](self, int(nodeid), timestamp, seqno, timestamp, bitMap, message[15:])
         print("/******* END PACKET PARSING******/\n\n")
-        #self.parse_type2_modalities(bitMap, message[15:])
-        #seqNum, tempReading, humidReading, lightReading, noiseReading = struct.unpack('=Hffff', message[15:])
-        #print("seqNum: %d" % seqNum)
-        #print("tempReading %f humidReading %f lightReading %f noiseReading %f" % (tempReading, humidReading, lightReading, noiseReading))
 
-    def on_log(self, mosq, obj, level, string):
-        print(string)
- 
+
+    def parse_statistics_pkt(self, nodeid, type, message):
+        print("Parsing statistics packet")
+        if 'uptime' in type:
+            timestamp, uptime = message.split(',')
+            print('ts=%s, uptime=%s' % (timestamp, uptime))
+            print("[Uptime] message:%s" % message)
+            post_measurements_statistics_api('UptimeStatistic', nodeid, timestamp, "", ['uptime'], [uptime])
+        elif 'hrsensorlist' in type:
+            timestamp, sensorNodeID = message.split(',')
+            print("[hrsensorlist] message:%s" % message)
+            #post_measurements_statistics_api('GatewayStatistic', nodeid, timestamp, "", ['hourly_sensor_list'], [sensorNodeID])
+        elif 'hrpktcount' in type:
+            timestamp, sensorNodeID, totalPkts = message.split(',')
+            print("[hrpktcount] message:%s" % message)
+            #post_measurements_statistics_api('GatewayStatistic', nodeid, timestamp, "", ['hourly_packet_count'], [totalPkts])
+        elif 'hrbytecount' in type:
+            print("[hrbytecount] message:%s" % message)
+            #post_measurements_statistics_api('RoutingStatistic', src, timestamp, seqNum, ['hop_count', 'route'], [hopCount, sensorNodeID])
+        elif 'route' in type:
+            timestamp, src, seqNum, hopCount, numRecordedRoute, sensorNodeID = message.split(',')
+            #print('ts=%s, src=%s, hc=%s, numRec=%s, SNID=%s' % (timestamp, src, hopCount, numRecordedRoute, sensorNodeID))
+            print("[route] message:%s" % message)
+            post_measurements_statistics_api('RoutingStatistic', src, timestamp, seqNum, ['hop_count', 'route'], [hopCount, sensorNodeID])
+        elif 'hourlyGateway' in type:
+            timestamp, totalPkts, totalBytes, sensorNodeID = message.split(',')
+            print('ts=%s, totalPkt=%s, totalBytes=%s, sensorNodeId=%s' % (timestamp, totalPkts, totalBytes, sensorNodeID))
+            post_measurements_statistics_api('GatewayStatistic', nodeid, timestamp, "", ['hourly_packet_count', 'hourly_byte_count', 'hourly_sensor_list'], [totalPkts, totalBytes, sensorNodeID])
+        elif 'hourlySensor' in type:
+            timestamp, totalPkts, totalBytes, sensorNodeID, pdr = message.split(',')
+            print('ts=%s, totalPkt=%s, totalBytes=%s, sensorNodeId=%s, pdr=%s' % (timestamp, totalPkts, totalBytes, sensorNodeID, pdr))
+            post_measurements_statistics_api('GatewayStatistic', nodeid, timestamp, "", ['hourly_packet_count', 'hourly_byte_count', 'hourly_sensor_list', 'pdr_list'], [totalPkts, totalBytes, sensorNodeID, pdr])
+
+
     def __init__(self):
         self.mqttc = paho.Client("demux_sub_pub", clean_session=True, userdata=None, protocol=paho.MQTTv311)
         self.mqttc.on_message = self.on_message
         self.mqttc.on_connect = self.on_connect
         self.mqttc.on_publish = self.on_publish
         self.mqttc.on_subscribe = self.on_subscribe
- 
-        # Uncomment to enable debug messages
-        self.mqttc.on_log = self.on_log
-        self.mqttc.connect(EXT_BROKER_URL, EXT_BROKER_PORT, EXT_BROKER_TIMEOUT)
+        self.mqttc.connect(settings.EXT_BROKER_URL, settings.EXT_BROKER_PORT, settings.EXT_BROKER_TIMEOUT)
         self.mqttc.loop_forever()
 
-#if __name__ == "__main__":
-#    test = MQTTDemuxClient()
