@@ -152,7 +152,7 @@ class MQTTDemuxClient:
 
 
     def parse_statistics_pkt(self, nodeid, type, message):
-        print("Parsing statistics packet")
+        print("Parsing statistics packet with message %s" % message)
         if 'uptime' in type:
             timestamp, uptime = message.split(',')
             print('ts=%s, uptime=%s' % (timestamp, uptime))
@@ -169,11 +169,11 @@ class MQTTDemuxClient:
         elif 'hrbytecount' in type:
             print("[hrbytecount] message:%s" % message)
             #post_measurements_statistics_api('RoutingStatistic', src, timestamp, seqNum, ['hop_count', 'route'], [hopCount, sensorNodeID])
-        elif 'route' in type:
-            timestamp, src, seqNum, hopCount, numRecordedRoute, sensorNodeID = message.split(',')
+#        elif 'route' in type:
+#            timestamp, src, seqNum, hopCount, numRecordedRoute, sensorNodeID = message.split(',')
             #print('ts=%s, src=%s, hc=%s, numRec=%s, SNID=%s' % (timestamp, src, hopCount, numRecordedRoute, sensorNodeID))
-            print("[route] message:%s" % message)
-            post_measurements_statistics_api('RoutingStatistic', src, timestamp, seqNum, ['hop_count', 'route'], [hopCount, sensorNodeID])
+#            print("[route] message:%s" % message)
+#            post_measurements_statistics_api('RoutingStatistic', src, timestamp, seqNum, ['hop_count', 'route'], [hopCount, sensorNodeID])
         elif 'hourlyGateway' in type:
             timestamp, totalPkts, totalBytes, sensorNodeID = message.split(',')
             print('ts=%s, totalPkt=%s, totalBytes=%s, sensorNodeId=%s' % (timestamp, totalPkts, totalBytes, sensorNodeID))
@@ -181,7 +181,7 @@ class MQTTDemuxClient:
         elif 'hourlySensor' in type:
             timestamp, totalPkts, totalBytes, sensorNodeID, pdr = message.split(',')
             print('ts=%s, totalPkt=%s, totalBytes=%s, sensorNodeId=%s, pdr=%s' % (timestamp, totalPkts, totalBytes, sensorNodeID, pdr))
-            post_measurements_statistics_api('GatewayStatistic', nodeid, timestamp, "", ['hourly_packet_count', 'hourly_byte_count', 'hourly_sensor_list', 'pdr_list'], [totalPkts, totalBytes, sensorNodeID, pdr])
+            post_measurements_statistics_api('GatewayStatistic', nodeid, timestamp, "", ['hourly_packet_count', 'hourly_byte_count', 'sensor_guid', 'pdr_list'], [totalPkts, totalBytes, sensorNodeID, pdr])
 
 
     def __init__(self):
