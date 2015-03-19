@@ -79,3 +79,9 @@ CACHES = {
 # See: https://docs.djangoproject.com/en/dev/ref/settings/#secret-key
 SECRET_KEY = get_env_setting('SECRET_KEY')
 ########## END SECRET CONFIGURATION
+
+# Set your DSN value
+RAVEN_CONFIG = {
+    'dsn': 'http://797e63f0ae134330b50b4a211bae90cb:9a65a284059543a6aa8908f70d6c3d40@sentry.sensesurf.sns-i2r.org/2',
+}
+

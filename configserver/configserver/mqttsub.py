@@ -114,10 +114,9 @@ class MQTTDemuxClient:
         if topic[3] == 'aggregate' and len(topic) == 4:
             print("Pass packet to data module")
             publishTopic = topic[0] + '/' + topic[1] + '/' + topic[2] + '/reading/' + topic[3] 
-            #self.parse_sensor_pkt(topic[2], publishTopic, messagebyte)
-        elif topic[3] == 'statistics':# and len(topic) == 5:
+            self.parse_sensor_pkt(topic[2], publishTopic, messagebyte)
+        elif topic[3] == 'statistics' and len(topic) == 5:
             self.parse_statistics_pkt(topic[2], topic[4], messagebyte.decode('utf-8'))
-            print("+++++++++ I have a statistics packet... How now? Brown cow? ++++")
  
     def on_publish(self, client, userdata, mid):
         logger.debug('On publishing mib: %s ' % (str(mid))) 
@@ -152,37 +151,27 @@ class MQTTDemuxClient:
 
 
     def parse_statistics_pkt(self, nodeid, type, message):
-        print("Parsing statistics packet with message %s" % message)
-        if 'uptime' in type:
-            timestamp, uptime = message.split(',')
-            print('ts=%s, uptime=%s' % (timestamp, uptime))
-            print("[Uptime] message:%s" % message)
-            post_measurements_statistics_api('UptimeStatistic', nodeid, timestamp, "", ['uptime'], [uptime])
-        elif 'hrsensorlist' in type:
-            timestamp, sensorNodeID = message.split(',')
-            print("[hrsensorlist] message:%s" % message)
-            #post_measurements_statistics_api('GatewayStatistic', nodeid, timestamp, "", ['hourly_sensor_list'], [sensorNodeID])
-        elif 'hrpktcount' in type:
-            timestamp, sensorNodeID, totalPkts = message.split(',')
-            print("[hrpktcount] message:%s" % message)
-            #post_measurements_statistics_api('GatewayStatistic', nodeid, timestamp, "", ['hourly_packet_count'], [totalPkts])
-        elif 'hrbytecount' in type:
-            print("[hrbytecount] message:%s" % message)
-            #post_measurements_statistics_api('RoutingStatistic', src, timestamp, seqNum, ['hop_count', 'route'], [hopCount, sensorNodeID])
-#        elif 'route' in type:
-#            timestamp, src, seqNum, hopCount, numRecordedRoute, sensorNodeID = message.split(',')
-            #print('ts=%s, src=%s, hc=%s, numRec=%s, SNID=%s' % (timestamp, src, hopCount, numRecordedRoute, sensorNodeID))
-#            print("[route] message:%s" % message)
-#            post_measurements_statistics_api('RoutingStatistic', src, timestamp, seqNum, ['hop_count', 'route'], [hopCount, sensorNodeID])
-        elif 'hourlyGateway' in type:
-            timestamp, totalPkts, totalBytes, sensorNodeID = message.split(',')
-            print('ts=%s, totalPkt=%s, totalBytes=%s, sensorNodeId=%s' % (timestamp, totalPkts, totalBytes, sensorNodeID))
-            post_measurements_statistics_api('GatewayStatistic', nodeid, timestamp, "", ['hourly_packet_count', 'hourly_byte_count', 'hourly_sensor_list'], [totalPkts, totalBytes, sensorNodeID])
-        elif 'hourlySensor' in type:
-            timestamp, totalPkts, totalBytes, sensorNodeID, pdr = message.split(',')
-            print('ts=%s, totalPkt=%s, totalBytes=%s, sensorNodeId=%s, pdr=%s' % (timestamp, totalPkts, totalBytes, sensorNodeID, pdr))
-            post_measurements_statistics_api('GatewayStatistic', nodeid, timestamp, "", ['hourly_packet_count', 'hourly_byte_count', 'sensor_guid', 'pdr_list'], [totalPkts, totalBytes, sensorNodeID, pdr])
-
+        try:
+            print("Parsing statistics packet with message %s" % message)
+            if 'uptime' in type:
+                timestamp, uptime = message.split(',')
+                print('ts=%s, uptime=%s' % (timestamp, uptime))
+                print("[Uptime] message:%s" % message)
+                post_measurements_statistics_api('UptimeStatistic', nodeid, timestamp, "", ['uptime'], [uptime])
+            elif 'route' in type:
+                timestamp, src, seqNum, hopCount, numRecordedRoute, sensorNodeID = message.split(',')
+                print('ts=%s, src=%s, hc=%s, numRec=%s, SNID=%s' % (timestamp, src, hopCount, numRecordedRoute, sensorNodeID))
+                post_measurements_statistics_api('RoutingStatistic', src, timestamp, seqNum, ['hop_count', 'route'], [hopCount, sensorNodeID])
+            elif 'hourlyGateway' in type:
+                timestamp, totalPkts, totalBytes, sensorNodeID = message.split(',')
+                print('ts=%s, totalPkt=%s, totalBytes=%s, sensorNodeId=%s' % (timestamp, totalPkts, totalBytes, sensorNodeID))
+                post_measurements_statistics_api('GatewayStatistic', nodeid, timestamp, "", ['hourly_packet_count', 'hourly_byte_count', 'sensor_list'], [totalPkts, totalBytes, sensorNodeID])
+            elif 'hourlySensor' in type:
+                timestamp, totalPkts, totalBytes, sensorNodeID, pdr = message.split(',')
+                print('ts=%s, totalPkt=%s, totalBytes=%s, sensorNodeId=%s, pdr=%s' % (timestamp, totalPkts, totalBytes, sensorNodeID, pdr))
+                post_measurements_statistics_api('SensorStatistic', sensorNodeID, timestamp, "", ['hourly_packet_count', 'hourly_byte_count', 'gateway_guid', 'pdr_list'], [totalPkts, totalBytes, nodeid, pdr])
+        except ValueError as e:
+            logger.error('There was some crazy error', exc_info=True)
 
     def __init__(self):
         self.mqttc = paho.Client("demux_sub_pub", clean_session=True, userdata=None, protocol=paho.MQTTv311)

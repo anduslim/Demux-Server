@@ -7,3 +7,4 @@ South==0.8.4
 mosquitto==1.2.3
 paho-mqtt==1.0
 requests==2.5.3
+raven==5.2.0
