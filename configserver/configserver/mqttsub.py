@@ -67,31 +67,33 @@ def parse_type3_modalities(client, nodeid, timestamp, seqno, gwtimestamp, bitmap
     payload_ptr = 0
     bytelength = 0        
     for position in client.bits(bitmap):
-        bytelength = TYPE3_BYTELENGTH[position-1]
-        if bytelength == 2:
-            value = struct.unpack('H', payload[payload_ptr:payload_ptr+bytelength])
-            print("value is %s" % str(value[0]))
-        elif bytelength == 4:
-            value = struct.unpack('f', payload[payload_ptr:payload_ptr+bytelength])
-            print("value is %f" % value)
-        payload_ptr += bytelength
-        print("Bitmap Position: %s, Modality: %s of length %d, Value %s" % (str(position-1), TYPE3_MODALITIES[position-1], bytelength, str(value[0])))
-        if position > 1:
-            post_measurements_data_api(TYPE3_MODALITIES_TYPE[position-1], nodeid, timestamp, seqno, gwtimestamp, TYPE3_DATAAPI_MODALITIES[position-1], value) 
+        if position != 0:
+            bytelength = TYPE3_BYTELENGTH[position-1]
+            if bytelength == 2:
+                value = struct.unpack('H', payload[payload_ptr:payload_ptr+bytelength])
+                print("value is %s" % str(value[0]))
+            elif bytelength == 4:
+                value = struct.unpack('f', payload[payload_ptr:payload_ptr+bytelength])
+                print("value is %f" % value)
+            payload_ptr += bytelength
+            print("Bitmap Position: %s, Modality: %s of length %d, Value %s" % (str(position-1), TYPE3_MODALITIES[position-1], bytelength, str(value[0])))
+            if position > 1:
+                post_measurements_data_api(TYPE3_MODALITIES_TYPE[position-1], nodeid, timestamp, seqno, gwtimestamp, TYPE3_DATAAPI_MODALITIES[position-1], value) 
 
 def parse_type2_modalities(client, nodeid, timestamp, seqno, gwtimestamp, bitmap, payload):
     payload_ptr = 0
     bytelength = 0        
     for position in client.bits(bitmap):
-        bytelength = TYPE2_BYTELENGTH[position-1]
-        if bytelength == 2:
-            value = struct.unpack('H', payload[payload_ptr:payload_ptr+bytelength])
-        elif bytelength == 4:
-            value = struct.unpack('f', payload[payload_ptr:payload_ptr+bytelength])
-        payload_ptr += bytelength
-        print("Bitmap Position: %s, Modality: %s of length %d, Value %s" % (str(position-1), TYPE2_MODALITIES[position-1], bytelength, str(value[0])))
-        if position > 1:
-            post_measurements_data_api(TYPE2_MODALITIES_TYPE[position-1], nodeid, timestamp, seqno, gwtimestamp, TYPE2_DATAAPI_MODALITIES[position-1], value) 
+        if position != 0:
+            bytelength = TYPE2_BYTELENGTH[position-1]
+            if bytelength == 2:
+                value = struct.unpack('H', payload[payload_ptr:payload_ptr+bytelength])
+            elif bytelength == 4:
+                value = struct.unpack('f', payload[payload_ptr:payload_ptr+bytelength])
+            payload_ptr += bytelength
+            print("Bitmap Position: %s, Modality: %s of length %d, Value %s" % (str(position-1), TYPE2_MODALITIES[position-1], bytelength, str(value[0])))
+            if position > 1:
+                post_measurements_data_api(TYPE2_MODALITIES_TYPE[position-1], nodeid, timestamp, seqno, gwtimestamp, TYPE2_DATAAPI_MODALITIES[position-1], value) 
 
 TYPE_MAPPING = {2 : parse_type2_modalities,
                 3 : parse_type3_modalities,
