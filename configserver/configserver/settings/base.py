@@ -216,7 +216,7 @@ LOGGING = {
     'disable_existing_loggers': True,
     'root': {
         'level': 'WARNING',
-        'handlers': ['sentry'],
+        'handlers': ['sentry', 'console'],
     },
     'formatters': {
         'verbose': {
@@ -233,7 +233,7 @@ LOGGING = {
     },
     'handlers': {
         'sentry': {
-            'level': 'ERROR',
+            'level': 'INFO',
             'class': 'raven.contrib.django.raven_compat.handlers.SentryHandler',
         },
         'console': {
@@ -282,4 +282,7 @@ SOUTH_TESTS_MIGRATE = False
 EXT_BROKER_URL = "localhost"
 EXT_BROKER_PORT = 61616
 EXT_BROKER_TIMEOUT = 20
+NCS_ACTIVEMQ_URL = "192.168.14.212"
+NCS_ACTIVEMQ_PORT = 1883
+NCS_ACTIVEMQ_TIMEOUT = 20
 ######### END OTHER SETTINGS

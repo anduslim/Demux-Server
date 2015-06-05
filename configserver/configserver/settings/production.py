@@ -21,7 +21,7 @@ def get_env_setting(setting):
 
 ########## HOST CONFIGURATION
 # See: https://docs.djangoproject.com/en/1.5/releases/1.5/#allowed-hosts-required-in-production
-ALLOWED_HOSTS = ['demux.sensesurf.sns-i2r.org']
+ALLOWED_HOSTS = ['demux.sensesurf.sns-i2r.org', '192.168.15.217']
 ########## END HOST CONFIGURATION
 
 ########## EMAIL CONFIGURATION
